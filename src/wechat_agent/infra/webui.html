@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>微信 AI 桥接 · 控制台</title>
+<style>
+/* ==================== Design Tokens ==================== */
+:root{
+  --bg-base:#0f172a;--bg-surface:rgba(30,41,59,.72);--bg-elevated:rgba(51,65,85,.8);
+  --bg-glass:rgba(255,255,255,.05);--bg-glass2:rgba(255,255,255,.03);
+  --border-glass:rgba(255,255,255,.08);--border-glass-hover:rgba(255,255,255,.14);
+  --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --accent:#6366f1;--accent-hover:#818cf8;--accent-glow:rgba(99,102,241,.25);
+  --success:#4ade80;--warning:#fbbf24;--danger:#f87171;
+  --grad-accent:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);
+  --shadow-md:0 4px 16px rgba(0,0,0,.35);--shadow-lg:0 8px 32px rgba(0,0,0,.4);
+  --r:14px;--r-sm:10px;--r-xs:6px;--blur:blur(20px);
+  --t-fast:.15s ease;--t-normal:.25s ease;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-base);color:var(--text-primary);
+  font:14px/1.6 "Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  background-image:radial-gradient(ellipse at 15% 50%,rgba(99,102,241,.07) 0%,transparent 50%),
+                   radial-gradient(ellipse at 85% 20%,rgba(139,92,246,.05) 0%,transparent 50%)}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15)}
+
+/* ==================== Utilities ==================== */
+.text-primary{color:var(--text-primary)}.text-secondary{color:var(--text-secondary)}.text-muted{color:var(--text-muted)}
+.text-accent{color:var(--accent-hover)}.text-success{color:var(--success)}.text-warning{color:var(--warning)}.text-danger{color:var(--danger)}
+.font-sm{font-size:12px}.font-xs{font-size:11px}.font-bold{font-weight:600}
+.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}
+.flex{display:flex}.flex-1{flex:1}.items-center{align-items:center}
+.hidden{display:none!important}
+
+/* ==================== Header ==================== */
+header{padding:0 24px;height:56px;display:flex;align-items:center;gap:16px;
+  border-bottom:1px solid var(--border-glass);flex-shrink:0;
+  background:var(--bg-glass2);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);position:relative;z-index:10}
+header .logo{font-size:15px;font-weight:700;background:var(--grad-accent);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+nav{display:flex;gap:2px;margin-left:12px;overflow-x:auto;flex-shrink:1}
+nav button{background:none;border:1px solid transparent;color:var(--text-muted);
+  padding:6px 14px;cursor:pointer;border-radius:var(--r-xs);font-size:13px;font-weight:500;
+  transition:all var(--t-fast);white-space:nowrap;position:relative}
+nav button:hover{color:var(--text-primary);background:var(--bg-glass)}
+nav button.active{color:#fff;background:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+nav button .dirty-dot{position:absolute;top:4px;right:4px;width:6px;height:6px;
+  border-radius:50%;background:var(--warning);display:none}
+nav button .dirty-dot.show{display:block}
+#uptime{color:var(--text-muted);font-size:12px;margin-left:auto;white-space:nowrap}
+
+/* ==================== Main ==================== */
+#main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:20px 24px 40px}
+
+/* ==================== Card ==================== */
+.card{background:var(--bg-surface);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--border-glass);border-radius:var(--r);padding:20px;margin-bottom:16px;
+  box-shadow:var(--shadow-sm);transition:border-color var(--t-normal)}
+.card:hover{border-color:var(--border-glass-hover)}
+.card h2{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);
+  margin:0 0 14px;font-weight:600}
+
+/* ==================== Status ==================== */
+.row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);flex-shrink:0}
+.dot.ok{background:var(--success);box-shadow:0 0 8px rgba(74,222,128,.4)}
+.dot.warn{background:var(--warning);box-shadow:0 0 8px rgba(251,191,36,.4)}
+.dot.err{background:var(--danger);box-shadow:0 0 8px rgba(248,113,113,.4)}
+.k{color:var(--text-secondary);min-width:90px;flex-shrink:0;font-size:13px}
+.v{color:var(--text-primary);word-break:break-all;font-size:13px}
+
+/* ==================== Pills & Tags ==================== */
+.pill{display:inline-block;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.18);
+  border-radius:20px;padding:2px 10px;font-size:12px;margin:2px 4px 0 0;color:var(--accent-hover)}
+.tag{font-size:11px;background:rgba(99,102,241,.1);border-radius:var(--r-xs);
+  padding:2px 8px;color:var(--accent-hover);font-weight:500}
+
+/* ==================== Grid ==================== */
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:0 24px}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
+
+/* ==================== Stat Cards ==================== */
+.stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.stat-box{background:var(--bg-surface);border:1px solid var(--border-glass);border-radius:var(--r-sm);
+  padding:16px 20px;flex:1;min-width:130px;transition:border-color var(--t-normal)}
+.stat-box:hover{border-color:var(--border-glass-hover)}
+.stat-num{font-size:28px;font-weight:700;background:var(--grad-accent);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
+.stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+/* ==================== Table ==================== */
+.table-wrap{overflow-x:auto;border-radius:var(--r-sm);border:1px solid var(--border-glass)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+th{text-align:left;padding:10px 14px;color:var(--text-muted);font-weight:600;font-size:11px;
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border-glass);
+  background:var(--bg-glass2);position:sticky;top:0;z-index:1}
+td{text-align:left;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(99,102,241,.03)}
+
+/* ==================== Buttons ==================== */
+.btn{background:var(--accent);color:#fff;border:none;border-radius:var(--r-xs);padding:8px 18px;
+  cursor:pointer;font-size:13px;font-weight:500;transition:all var(--t-fast);
+  box-shadow:0 2px 8px var(--accent-glow);display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--accent-glow);background:var(--accent-hover)}
+.btn:active{transform:translateY(0);box-shadow:0 1px 4px var(--accent-glow)}
+.btn:focus-visible{outline:2px solid var(--accent-hover);outline-offset:2px}
+.btn[data-loading]{opacity:.7;pointer-events:none}
+.btn[data-loading]::after{content:"";width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.off{background:var(--bg-glass2);color:var(--text-muted);border:1px solid var(--border-glass);box-shadow:none}
+.btn.off:hover{background:var(--bg-glass);color:var(--text-primary);box-shadow:none;transform:none}
+.btn.danger{background:var(--danger);box-shadow:0 2px 8px rgba(248,113,113,.2)}
+.btn.danger:hover{box-shadow:0 4px 16px rgba(248,113,113,.3)}
+.btn.gray{background:var(--bg-glass2);color:var(--text-muted);border:1px solid var(--border-glass);box-shadow:none}
+.btn.gray:hover{background:var(--bg-glass);color:var(--text-primary);box-shadow:none;transform:none}
+
+/* ==================== Form Controls ==================== */
+select,input[type=text],input[type=number],input[type=password],textarea{
+  background:rgba(15,23,42,.85);border:1px solid var(--border-glass);color:var(--text-primary);
+  border-radius:var(--r-xs);padding:8px 12px;font-size:13px;width:100%;
+  transition:border-color var(--t-fast),box-shadow var(--t-fast);outline:none;font-family:inherit}
+select{cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+select option{background:#1e293b;color:#f1f5f9;padding:6px 8px}
+select:focus,input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+input::placeholder,textarea::placeholder{color:var(--text-muted)}
+textarea{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;resize:vertical}
+label{display:block;color:var(--text-secondary);font-size:12px;margin:8px 0 4px;font-weight:500}
+
+/* ==================== Switch ==================== */
+.switch{position:relative;display:inline-block;width:44px;height:24px;vertical-align:middle}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:var(--bg-elevated);
+  border:1px solid var(--border-glass);border-radius:24px;transition:var(--t-normal)}
+.slider:before{position:absolute;content:"";height:18px;width:18px;left:2px;bottom:2px;
+  background:var(--text-muted);border-radius:50%;transition:var(--t-normal)}
+.switch input:checked+.slider{background:var(--accent);border-color:var(--accent)}
+.switch input:checked+.slider:before{transform:translateX(20px);background:#fff}
+
+/* ==================== Field Blocks ==================== */
+.fld{margin-bottom:14px}
+.fld .lab{display:flex;align-items:center;gap:8px;color:var(--text-primary);font-size:13px;font-weight:600;margin-bottom:4px}
+.fld .lab .path{color:var(--text-muted);font-size:11px;font-family:ui-monospace,monospace;margin-left:auto}
+.fld .hint{color:var(--text-secondary);font-size:12px;line-height:1.5}
+.fld .addhint{color:var(--accent-hover);font-size:11px;background:rgba(99,102,241,.05);
+  border-left:2px solid var(--accent);padding:5px 12px;margin-top:6px;border-radius:0 var(--r-xs) var(--r-xs) 0}
+.fld .addhint b{color:var(--warning)}
+
+/* ==================== Group Title ==================== */
+.group-title{font-size:12px;color:var(--accent-hover);font-weight:700;margin:22px 0 10px;
+  padding-bottom:8px;border-bottom:1px solid var(--border-glass);letter-spacing:.5px;text-transform:uppercase}
+
+/* ==================== Mask Card ==================== */
+.mask{background:var(--bg-glass2);border:1px solid var(--border-glass);border-radius:var(--r-sm);
+  padding:16px;margin-bottom:12px;transition:border-color var(--t-normal)}
+.mask:hover{border-color:var(--border-glass-hover)}
+.mask .mhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mask .mhead .mname{font-weight:700;font-size:15px}
+
+/* ==================== Hint Box ==================== */
+.hintbox{background:rgba(99,102,241,.04);border:1px solid rgba(99,102,241,.1);
+  border-radius:var(--r-sm);padding:12px 14px;color:var(--text-secondary);
+  font-size:12px;margin-bottom:14px;white-space:pre-wrap;line-height:1.6}
+
+/* ==================== Toolbar ==================== */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.toolbar label{color:var(--text-secondary);font-size:13px;margin:0}
+
+/* ==================== Logs ==================== */
+#logs{background:rgba(0,0,0,.25);border:1px solid var(--border-glass);border-radius:var(--r);
+  height:40vh;overflow:auto;padding:14px 16px;font:12px/1.6 ui-monospace,"Cascadia Code",Consolas,monospace}
+#logs p{margin:0;white-space:pre-wrap;padding:1px 0}
+#logs .w{color:var(--warning)}#logs .e{color:var(--danger)}#logs .i{color:var(--text-primary)}
+
+/* ==================== Toast ==================== */
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:var(--r-sm);
+  font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(-10px);
+  transition:all var(--t-normal);display:flex;align-items:center;gap:8px;
+  border-left:3px solid transparent;max-width:400px;
+  background:var(--bg-surface);backdrop-filter:var(--blur)}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{color:var(--success);border-left-color:var(--success);box-shadow:0 4px 20px rgba(74,222,128,.12)}
+.toast.error{color:var(--danger);border-left-color:var(--danger);box-shadow:0 4px 20px rgba(248,113,113,.12)}
+.toast.warning{color:var(--warning);border-left-color:var(--warning);box-shadow:0 4px 20px rgba(251,191,36,.12)}
+
+/* ==================== Login ==================== */
+#login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;z-index:1000}
+#login-box{background:var(--bg-surface);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  padding:36px;border-radius:var(--r);border:1px solid var(--border-glass);max-width:400px;width:90%;box-shadow:var(--shadow-lg)}
+#login-box h2{margin:0 0 8px;font-size:20px;font-weight:700}
+#login-box p{color:var(--text-secondary);font-size:13px;margin:0 0 20px}
+
+/* ==================== Button Row ==================== */
+.bttn-row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+
+/* ==================== Responsive ==================== */
+@media(max-width:768px){
+  header{padding:0 14px;height:auto;flex-wrap:wrap;padding-top:10px;padding-bottom:10px;gap:8px}
+  nav{margin-left:0;order:3;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+  nav button{padding:5px 10px;font-size:12px}
+  #uptime{font-size:11px}
+  #main{padding:14px 14px 30px}
+  .grid2{grid-template-columns:1fr}
+  .grid-cards{grid-template-columns:1fr}
+  .stat-row{flex-direction:column}
+  .stat-box{min-width:unset}
+  .card{padding:14px}
+  .table-wrap{margin:0 -4px}
+  .bttn-row{flex-direction:column;align-items:stretch}
+  .bttn-row .btn{width:100%;justify-content:center}
+}
+@media(max-width:480px){
+  header{padding:0 10px}
+  nav button{padding:4px 8px;font-size:11px}
+  #main{padding:10px 10px 20px}
+}
+</style></head><body>
+<header>
+<span class="logo">🤖 微信 AI 桥接</span>
+<nav id="nav">
+<button data-tab="monitor" class="active">📊 监控</button>
+<button data-tab="sessions">💬 会话<span class="dirty-dot" id="dirty-sessions"></span></button>
+<button data-tab="config">⚙️ 配置<span class="dirty-dot" id="dirty-config"></span></button>
+<button data-tab="personas">🎭 人设<span class="dirty-dot" id="dirty-personas"></span></button>
+<button data-tab="rules">📜 规则<span class="dirty-dot" id="dirty-rules"></span></button>
+<button data-tab="security">🔒 安全<span class="dirty-dot" id="dirty-security"></span></button>
+<button data-tab="reminders">⏰ 提醒<span class="dirty-dot" id="dirty-reminders"></span></button>
+</nav>
+<span id="uptime"></span>
+</header>
+<div id="main">
+<!-- Monitor -->
+<div id="tab-monitor">
+<div class="stat-row" id="stat-nums"></div>
+<div class="grid-cards" id="cards"></div>
+<div class="toolbar"><label>实时日志 <span id="conn"></span></label><span class="flex-1"></span>
+<label style="margin:0"><input type="checkbox" id="auto" checked> 自动滚动</label>
+<button class="btn sm gray" id="clear-log">清屏</button></div>
+<div id="logs"><p class="text-secondary">等待日志…</p></div>
+</div>
+<!-- Sessions -->
+<div id="tab-sessions" class="hidden">
+<div class="card"><h2>会话管理</h2>
+<p class="text-secondary font-sm mb-3">改完点下方【保存】统一生效。监听=bot 收该会话；面具=该会话人格；共享记忆=开启则记忆进全局共享（跨面具），关闭则该面具单独记忆。</p>
+<div class="table-wrap"><table><thead><tr><th>昵称</th><th>类型</th><th>监听</th><th>主动发言</th><th>冷却(s)</th><th>模式</th><th>面具</th><th>共享记忆</th></tr></thead>
+<tbody id="sess-body"></tbody></table></div>
+<div class="bttn-row"><button class="btn" id="sess-save">💾 保存全部修改</button>
+<button class="btn gray" id="sess-reload">🔄 重新加载</button>
+<span id="sess-msg" class="text-secondary font-sm"></span></div>
+<p class="text-accent font-xs mt-3">未在下面列表的会话可在 settings.yaml 的 wechat.group_chats / master_chat 加名字后重启以监听。</p>
+</div></div>
+<!-- Config -->
+<div id="tab-config" class="hidden">
+<div class="card"><h2>⚙️ 运行配置（settings.yaml）</h2>
+<p class="text-secondary font-sm mb-2">可视化编辑；保存后点"热重载"即时生效（部分字段需重启，会提示）。</p>
+<button class="btn sm gray" onclick="cfgToggleRaw()">切换：表单 / 原始JSON</button>
+<div class="hintbox mt-3">💡 每个字段下方蓝字是"要增加/修改去哪加、怎么加"。</div>
+<div id="cfg-form"></div>
+<textarea id="cfg-editor" spellcheck="false" class="hidden" style="min-height:60vh"></textarea>
+<div class="bttn-row">
+<button class="btn" id="cfg-save">💾 保存</button>
+<button class="btn off" id="cfg-reload">🔄 热重载</button>
+<button class="btn gray" id="cfg-reset">↩️ 重新加载</button>
+<span id="cfg-msg" class="text-secondary font-sm"></span>
+</div></div></div>
+<!-- Personas -->
+<div id="tab-personas" class="hidden">
+<div class="card"><h2>🎭 人设 / 面具（personas.yaml）</h2>
+<div class="hintbox" id="per-hint"></div>
+<div id="per-masks"></div>
+<div class="bttn-row">
+<button class="btn" onclick="perAddMask()">＋ 新增面具</button>
+<button class="btn" id="per-save">💾 保存全部</button>
+<button class="btn gray" id="per-reset">↩️ 重新加载</button>
+<span id="per-msg" class="text-secondary font-sm"></span>
+</div>
+<div class="hintbox mt-4">默认人设：群聊直接用上面对话；想改大号/群聊默认人设，编辑 <b>personas.yaml</b> 的 master_persona / group_persona 字段（本页聚焦面具，默认人设请切"配置→原始JSON"或直接改文件）。</div>
+</div></div>
+<!-- Rules -->
+<div id="tab-rules" class="hidden">
+<div class="card"><h2>📜 规则（rules.yaml）</h2>
+<div class="hintbox" id="rul-hint"></div>
+<div id="rul-list"></div>
+<div class="bttn-row">
+<button class="btn" onclick="rulAdd()">＋ 新增规则</button>
+<button class="btn" id="rul-save">💾 保存</button>
+<button class="btn gray" id="rul-reset">↩️ 重新加载</button>
+<span id="rul-msg" class="text-secondary font-sm"></span>
+</div></div></div>
+<!-- Security -->
+<div id="tab-security" class="hidden">
+<div class="card"><h2>🔒 群聊安全策略（group-policy.yaml）</h2>
+<div class="hintbox" id="sec-hint"></div>
+<div id="sec-list"></div>
+<div class="bttn-row">
+<button class="btn gray" onclick="secAddTool()">＋ 手动添加工具 id</button>
+<button class="btn" id="sec-save">💾 保存</button>
+<button class="btn gray" id="sec-reset">↩️ 重新加载</button>
+<span id="sec-msg" class="text-secondary font-sm"></span>
+</div></div></div>
+<!-- Reminders -->
+<div id="tab-reminders" class="hidden">
+<div class="card"><h2>⏰ 提醒 / 日程（schedules）</h2>
+<div class="hintbox">每条提醒=名称 + 时间 + 生效对话；到点由 bot 主动往该对话发提醒。名称/时间/对话可改，可删除。<br>生效对话下拉来自"会话"页的全量会话；对话随时可加。</div>
+<div class="card" style="margin-bottom:14px">
+<h2 id="rem-form-title">添加提醒</h2>
+<div class="grid2" style="grid-template-columns:1fr 1fr 1fr auto">
+<input type="text" id="rm-name" placeholder="提醒名称，如：高数考试">
+<input type="text" id="rm-when" placeholder="YYYY-MM-DD HH:MM，如 2026-08-20 15:00">
+<select id="rm-chat"></select>
+</div>
+<div class="bttn-row">
+<button class="btn" id="rm-save" onclick="remSave()">添加</button>
+<button class="btn gray hidden" id="rm-cancel" onclick="remCancelEdit()">取消编辑</button>
+<span id="rm-msg" class="text-secondary font-sm"></span>
+</div></div>
+<div class="table-wrap"><table><thead><tr><th style="width:24%">名称</th><th style="width:26%">时间</th><th>生效对话</th><th style="width:22%">操作</th></tr></thead>
+<tbody id="rem-body"></tbody></table></div>
+<p class="text-secondary font-xs mt-3">注意：改时间格式须为 <b>YYYY-MM-DD HH:MM</b>；"添加/编辑"保存后到点触发，已提醒的会被自动清理。</p>
+</div></div>
+</div>
+<!-- Login -->
+<div id="login-overlay" class="hidden">
+<div id="login-box"><h2>🔑 输入访问 Token</h2>
+<p>Token 在启动时的控制台日志里（[web] 登录 Token：xxx）</p>
+<input type="password" id="login-token" placeholder="粘贴 Token…" autofocus>
+<div class="mt-4"><button class="btn" id="login-btn">登录</button>
+<span id="login-err" class="text-danger font-sm" style="margin-left:12px"></span></div>
+</div></div>
+<div id="toast" class="toast"></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+let AUTH=false,TOKEN='';
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// === Toast (typed) ===
+function toast(msg,type){
+  if(typeof type==='boolean')type=type?'error':'success';
+  type=type||'success';
+  const t=$('#toast');
+  const icons={success:'✓',error:'✕',warning:'⚠'};
+  t.innerHTML='<span style="font-size:16px">'+(icons[type]||'')+'</span> '+esc(msg);
+  t.className='toast '+type;
+  requestAnimationFrame(()=>t.classList.add('show'));
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// === Dirty state ===
+const DIRTY={};
+function setDirty(tab,on){
+  DIRTY[tab]=on;
+  const dot=$('#dirty-'+tab);
+  if(dot)dot.classList.toggle('show',!!on);
+}
+
+// === Auth ===
+async function api(path,opt={}){const h={'Content-Type':'application/json'};if(TOKEN)h['Authorization']='Bearer '+TOKEN;
+const r=await fetch(path,{...opt,headers:{...h,...(opt.headers||{})}});if(r.status===401&&!path.includes('/api/auth')){showLogin();throw new Error('unauthorized');}return r;}
+async function apiGet(p){return(await api(p)).json();}
+async function apiPost(p,body){return(await api(p,{method:'POST',body:JSON.stringify(body)})).json();}
+function showLogin(){$('#login-overlay').classList.remove('hidden');}
+$('#login-btn').onclick=async()=>{const tk=$('#login-token').value.trim();
+try{const r=await apiPost('/api/auth',{token:tk});if(r.ok){TOKEN=tk;AUTH=true;localStorage.setItem('wb_token',tk);$('#login-overlay').classList.add('hidden');init();}
+else{$('#login-err').textContent='Token 错误';}}catch(e){$('#login-err').textContent='连接失败';}};
+(()=>{const t=localStorage.getItem('wb_token');if(t){TOKEN=t;AUTH=true;}})();
+
+// === Monitor ===
+function colorLog(s){return esc(s).replace(/\[OK\]/g,'<span style="color:var(--success)">[OK]</span>').replace(/\[X\]/g,'<span style="color:var(--danger)">[X]</span>').replace(/\[!!\]/g,'<span style="color:var(--warning)">[!!]</span>');}
+function addLog(line){try{const el=$('#logs');const p=document.createElement('p');const m=line.match(/^\[(INFO|WARN|ERROR)\]/);
+p.className=m?('l '+(m[1]==='WARN'?'w':m[1]==='ERROR'?'e':'i')):'l i';p.innerHTML=colorLog(line);el.appendChild(p);
+while(el.children.length>800)el.removeChild(el.firstChild);if($('#auto')&&$('#auto').checked)el.scrollTop=el.scrollHeight;}catch(e){}}
+function renderStatus(s){const ch=s.channels||{},api=ch.api||{},har=ch.harness||{},pa=s.patch||{},wx=s.wechat||{},ct=s.counts||{};
+const tools=ct.tools||{};
+let sn='';
+sn+=statBox(ct.inbound||0,'收到');sn+=statBox(ct.sent||0,'已发送');sn+=statBox(ct.memory_writes||0,'写记忆');
+sn+=statBox(Object.values(tools).reduce((a,b)=>a+b,0),'工具调用');
+$('#stat-nums').innerHTML=sn;
+let h='';
+h+=card('通道',[row('直连(API)',api.provider+' / <b>'+esc(api.model)+'</b>',api.ok?'ok':'warn'),row('Harness',esc(har.provider)+' / '+esc(har.model),har.ok?'ok':'warn')]);
+h+=card('安全补丁',[row('状态',pa.injected?'已注入':'未注入',pa.injected?'ok':'warn'),row('禁用工具',(pa.disabled_tools||[]).length+' 个')]);
+h+=card('微信',[row('账号',esc(wx.account||'?'),'ok'),row('会话数',wx.sessions??0,'ok'),row('监听',(s.listening||[]).map(x=>'<span class="pill">'+esc(x.nick)+'·'+esc(x.kind)+'</span>').join('')||'(无)','ok')]);
+const toolEntries=Object.entries(tools);h+=card('工具详情',[toolEntries.length?toolEntries.map(([k,v])=>row(k,v+' 次')).join(''):row('暂无','(无工具调用)')]);
+$('#cards').innerHTML=h;$('#uptime').textContent='运行 '+fmtUptime(s.uptime)+' · v'+s.version;}
+function fmtUptime(s){if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m '+s%60+'s';return Math.floor(s/3600)+'h '+Math.floor(s%3600/60)+'m';}
+function statBox(n,label){return '<div class="stat-box"><div class="stat-num">'+n+'</div><div class="stat-label">'+label+'</div></div>';}
+function card(t,rows){return '<div class="card"><h2>'+t+'</h2>'+rows+'</div>';}
+function row(k,v,c){return '<div class="row"><span class="dot '+(c||'')+'"></span><span class="k">'+esc(k)+'</span><span class="v">'+(v||'')+'</span></div>';}
+
+// === Sessions ===
+async function loadSessions(){try{SESS=(await apiGet('/api/sessions')).sessions||[];EDITS={};renderSessions(SESS);setDirty('sessions',false);}catch(e){}}
+async function personaNames(){try{const d=await apiGet('/api/personas');const ms=d.masks||{};return Object.keys(ms);}catch(e){return[];}}
+let SESS=[],EDITS={};
+function sessVal(chat_id,key,def){return (EDITS[chat_id]&&key in EDITS[chat_id])?EDITS[chat_id][key]:def;}
+function renderSessions(list){
+const tb=$('#sess-body');tb.innerHTML='';
+personaNames().then(names=>{
+list.forEach(s=>{const tr=document.createElement('tr');
+const listen=sessVal(s.chat_id,'listen',s.listen);
+const act=sessVal(s.chat_id,'active_speak',s.active_speak);
+const cool=sessVal(s.chat_id,'active_cooldown',s.active_cooldown);
+const mode=sessVal(s.chat_id,'mode',s.mode);
+const mask=sessVal(s.chat_id,'mask',s.mask);
+const share=sessVal(s.chat_id,'share',s.share);
+const maskOpts='<option value="" '+(mask===''?'selected':'')+'>（默认）</option>'+names.map(n=>'<option '+(mask===n?'selected':'')+'>'+esc(n)+'</option>').join('');
+tr.innerHTML=`<td class="font-bold">${esc(s.nick||s.chat_id)}</td><td><span class="tag">${esc(s.kind)}</span></td>
+<td><button class="btn sm ${listen?'':'off'}" data-k="listen" data-id="${esc(s.chat_id)}">${listen?'开':'关'}</button></td>
+<td><button class="btn sm ${act?'':'off'}" data-k="active_speak" data-id="${esc(s.chat_id)}">${act?'开':'关'}</button></td>
+<td><input type="number" style="width:64px" value="${cool}" data-k="active_cooldown" data-id="${esc(s.chat_id)}"></td>
+<td><select data-k="mode" data-id="${esc(s.chat_id)}"><option value="" ${mode===''?'selected':''}>全局</option><option value="api" ${mode==='api'?'selected':''}>API</option><option value="harness" ${mode==='harness'?'selected':''}>Harness</option></select></td>
+<td><select data-k="mask" data-id="${esc(s.chat_id)}">${maskOpts}</select></td>
+<td><label class="switch"><input type="checkbox" data-k="share" data-id="${esc(s.chat_id)}" ${share?'checked':''}><span class="slider"></span></label></td>`;
+tb.appendChild(tr);});
+const markDirty=()=>setDirty('sessions',Object.keys(EDITS).length>0);
+tb.querySelectorAll('button[data-k=listen]').forEach(b=>b.onclick=()=>{const id=b.dataset.id;EDITS[id]=EDITS[id]||{};EDITS[id].listen=!sessVal(id,'listen',(SESS.find(x=>x.chat_id===id)||{}).listen);renderSessions(SESS);toast('已改监听（待保存）');markDirty();});
+tb.querySelectorAll('button[data-k=active_speak]').forEach(b=>b.onclick=()=>{const id=b.dataset.id;EDITS[id]=EDITS[id]||{};const base=(SESS.find(x=>x.chat_id===id)||{}).active_speak!==false;EDITS[id].active_speak=!sessVal(id,'active_speak',base);renderSessions(SESS);toast('已改主动发言（待保存）');markDirty();});
+tb.querySelectorAll('select[data-k=mode]').forEach(sel=>sel.onchange=()=>{EDITS[sel.dataset.id]=EDITS[sel.dataset.id]||{};EDITS[sel.dataset.id].mode=sel.value;toast('已改模式（待保存）');markDirty();});
+tb.querySelectorAll('select[data-k=mask]').forEach(sel=>sel.onchange=()=>{EDITS[sel.dataset.id]=EDITS[sel.dataset.id]||{};EDITS[sel.dataset.id].mask=sel.value;toast('已改面具（待保存）');markDirty();});
+tb.querySelectorAll('input[data-k=share]').forEach(c=>c.onchange=()=>{EDITS[c.dataset.id]=EDITS[c.dataset.id]||{};EDITS[c.dataset.id].share=c.checked;toast('已改共享记忆（待保存）');markDirty();});
+tb.querySelectorAll('input[data-k=active_cooldown]').forEach(inp=>inp.onchange=()=>{EDITS[inp.dataset.id]=EDITS[inp.dataset.id]||{};EDITS[inp.dataset.id].active_cooldown=+inp.value;toast('已改冷却（待保存）');markDirty();});
+});
+}
+$('#sess-reload').onclick=loadSessions;
+$('#sess-save').onclick=async()=>{
+const updates=Object.keys(EDITS).map(cid=>Object.assign({chat_id:cid},EDITS[cid]));
+if(!updates.length){toast('没有需要保存的修改','warning');return;}
+const btn=$('#sess-save');btn.setAttribute('data-loading','');
+try{const r=await apiPost('/api/sessions/batch',{updates});
+if(r&&r.ok){toast('已保存 '+r.applied+' 个会话');$('#sess-msg').textContent='已保存 '+r.applied+' 条';EDITS={};setDirty('sessions',false);loadSessions();}
+else toast((r&&r.error)||'保存失败','error');}catch(e){toast('保存失败','error');}
+finally{btn.removeAttribute('data-loading');}};
+
+// === Config: schema form ===
+let CFG={},CFGSCHEMA=null;
+function setPath(obj,path,val){const p=path.split('.');let o=obj;for(let i=0;i<p.length-1;i++){o[p[i]]=o[p[i]]||{};o=o[p[i]];}o[p[p.length-1]]=val;}
+function getPath(obj,path){const p=path.split('.');let o=obj;for(const k of p){if(o==null)return undefined;o=o[k];}return o;}
+async function loadConfig(){try{CFG=await apiGet('/api/config');}catch(e){}if(!CFGSCHEMA){try{CFGSCHEMA=await apiGet('/api/schema');}catch(e){CFGSCHEMA={fields:[],groups:[]};}}
+$('#cfg-editor').value=JSON.stringify(CFG,null,2);renderCfgForm();setDirty('config',false);}
+function fctl(f,val){const id='cfgf_'+f.path.replace(/[^a-zA-Z0-9]/g,'_');const dp='data-p="'+f.path+'"';
+if(f.type==='bool'){const on=(val===true||val==='true');return '<label class="switch"><input type="checkbox" id="'+id+'" '+dp+' '+(on?'checked':'')+'><span class="slider"></span></label>';}
+if(f.type==='select'){const opts=(f.options||[]).map(o=>'<option '+(val==o?'selected':'')+'>'+esc(o)+'</option>').join('')+(f.options&&!f.options.includes(val)?'<option selected>'+esc(val||'')+'</option>':'');return '<select id="'+id+'" '+dp+'>'+opts+'</select>';}
+if(f.type==='number')return '<input type="number" id="'+id+'" '+dp+' value="'+esc(val??'')+'" step="1">';
+if(f.type==='textarea')return '<textarea id="'+id+'" '+dp+' style="min-height:120px">'+esc(val||'')+'</textarea>';
+if(f.type==='list'){const pp=f.path;return '<input type="text" id="'+id+'_add" placeholder="目录名，多个用逗号"><button class="btn sm gray mt-2" data-path="'+pp+'" onclick="cfgAddList(this.dataset.path)">添加</button><div id="'+id+'_tags" class="mt-2">'+(val||[]).map((v,i)=>'<span class="pill">'+esc(v)+' <a href="#" style="color:var(--danger);text-decoration:none" onclick="event.preventDefault();cfgRmList(\''+pp+'\','+i+')">×</a></span>').join('')+'</div>';}
+return '<input type="text" id="'+id+'" '+dp+' value="'+esc(val||'')+'">';}
+function renderCfgForm(){const groups=(CFGSCHEMA.groups||[]);const fields=CFGSCHEMA.fields||[];
+let html='';
+for(const g of groups){const fs=fields.filter(f=>f.group===g.id);if(!fs.length)continue;
+html+='<div class="group-title">'+esc(g.label)+'</div><div class="grid2">';
+for(const f of fs){const val=getPath(CFG,f.path);const id='cfgf_'+f.path.replace(/\./g,'_');
+html+='<div class="fld"><div class="lab"><span>'+esc(f.label)+'</span><span class="tag">'+esc(f.type)+'</span><span class="path">'+esc(f.path)+'</span></div>'+fctl(f,val);
+if(f.hint)html+='<div class="hint">'+esc(f.hint)+'</div>';
+if(f.addhint)html+='<div class="addhint">要改去：<b>'+esc(f.addhint)+'</b></div>';html+='</div>';}
+html+='</div>';}
+$('#cfg-form').innerHTML=html;
+$$('#cfg-form input[type=checkbox]').forEach(c=>c.onchange=()=>{setPath(CFG,c.dataset.p,c.checked);setDirty('config',true);});
+$$('#cfg-form input[type=number]').forEach(c=>c.onchange=()=>{setPath(CFG,c.dataset.p,+c.value);setDirty('config',true);});
+$$('#cfg-form select').forEach(c=>c.onchange=()=>{setPath(CFG,c.dataset.p,c.value);setDirty('config',true);});
+$$('#cfg-form input[type=text]:not([id$=_add])').forEach(c=>c.onchange=()=>{setPath(CFG,c.dataset.p,c.value);setDirty('config',true);});
+}
+function cfgAddList(path){const id='cfgf_'+path.replace(/[^a-zA-Z0-9]/g,'_');const inp=document.getElementById(id+'_add');const tags=document.getElementById(id+'_tags');if(!inp||!tags)return;
+const arr=Array.isArray(getPath(CFG,path))?getPath(CFG,path):[];
+inp.value.split(/[,，\s]+/).filter(Boolean).forEach(v=>{if(!arr.includes(v))arr.push(v);});setPath(CFG,path,arr);renderCfgForm();setDirty('config',true);}
+function cfgRmList(path,i){const id='cfgf_'+path.replace(/[^a-zA-Z0-9]/g,'_');const arr=Array.isArray(getPath(CFG,path))?getPath(CFG,path):[];arr.splice(i,1);setPath(CFG,path,arr);renderCfgForm();setDirty('config',true);}
+function cfgToggleRaw(){rawMode('#cfg-form','#cfg-editor');}
+function rawMode(formSel,edSel){const form=$(formSel),ed=$(edSel);const on=!ed.classList.contains('hidden');
+if(on){ed.classList.add('hidden');form.classList.remove('hidden');}
+else{try{const d=JSON.parse(ed.value);CFG=d;}catch(e){}form.classList.add('hidden');ed.classList.remove('hidden');}}
+$('#cfg-reset').onclick=loadConfig;
+$('#cfg-save').onclick=async()=>{let d;const btn=$('#cfg-save');btn.setAttribute('data-loading','');
+try{const ed=$('#cfg-editor');if(!ed.classList.contains('hidden'))d=JSON.parse(ed.value);else d=CFG;
+const r=await apiPost('/api/config',d);if(r.ok){toast('settings.yaml 已保存');$('#cfg-msg').textContent='已保存';setDirty('config',false);}
+else{$('#cfg-msg').textContent=r.error||'失败';toast(r.error||'保存失败','error');}}catch(e){$('#cfg-msg').textContent='数据格式错误';toast('数据格式错误','error');}
+finally{btn.removeAttribute('data-loading');}};
+$('#cfg-reload').onclick=async()=>{const btn=$('#cfg-reload');btn.setAttribute('data-loading','');
+try{const r=await apiPost('/api/reload',{});if(r.ok){const cold=r.cold_changes||[];
+if(cold.length)toast('已重载；需重启：'+cold.join(', '),'warning');else toast('热重载成功');}
+else toast(r.error||'重载失败','error');}catch(e){toast('重载失败','error');}
+finally{btn.removeAttribute('data-loading');}};
+
+// === Personas ===
+let PER={};
+async function loadPersonas(){try{PER=await apiGet('/api/personas');}catch(e){PER={};}renderPersonas();setDirty('personas',false);}
+function renderPersonas(){const ms=PER.masks||{};$('#per-hint').textContent='新增面具：点"＋ 新增面具"；或在 /config/personas.yaml 的 masks: 下加：  面具名: {persona: 人设, greeting: 开场白, aliases: [别名]}。保存后"会话→面具"下拉会自动多出这个面具。';
+const box=$('#per-masks');box.innerHTML='';
+Object.keys(ms).forEach(name=>{const m=ms[name]||{};const d=document.createElement('div');d.className='mask';
+d.innerHTML='<div class="mhead"><span class="mname">🎭 '+esc(name)+'</span><span class="flex-1"></span><button class="btn sm danger" onclick="perDel(\''+esc(name)+'\')">删除</button></div>'+
+'<label>开场白 greeting</label><input type="text" data-k="greeting" data-n="'+esc(name)+'" value="'+esc(m.greeting||'')+'">'+
+'<label>别名 aliases（逗号分隔）</label><input type="text" data-k="aliases" data-n="'+esc(name)+'" value="'+esc((m.aliases||[]).map(esc).join(','))+'">'+
+'<label>人设 persona</label><textarea data-k="persona" data-n="'+esc(name)+'" style="min-height:110px">'+esc(m.persona||'')+'</textarea>';
+box.appendChild(d);});
+box.querySelectorAll('[data-k]').forEach(inp=>inp.onchange=()=>{const name=inp.dataset.n,k=inp.dataset.k;const m=PER.masks[name]=PER.masks[name]||{};
+if(k==='aliases')m[k]=inp.value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);else m[k]=inp.value;toast('已改（待保存）');setDirty('personas',true);});}
+function perAddMask(){PER=PER||{};PER.masks=PER.masks||{};let i=1,name='新面具'+i;while(PER.masks[name]){i++;name='新面具'+i;}PER.masks[name]={persona:'',greeting:'',aliases:[]};renderPersonas();toast('已加空白面具，填好人设后保存');setDirty('personas',true);}
+function perDel(name){delete PER.masks[name];renderPersonas();toast('已标记删除（待保存）');setDirty('personas',true);}
+$('#per-reset').onclick=loadPersonas;
+$('#per-save').onclick=async()=>{const btn=$('#per-save');btn.setAttribute('data-loading','');
+try{const r=await apiPost('/api/personas',Object.assign({},PER,{__replace:true}));
+if(r.ok){toast('personas.yaml 已保存');$('#per-msg').textContent='已保存';setDirty('personas',false);}
+else{$('#per-msg').textContent=r.error||'失败';toast(r.error||'保存失败','error');}}catch(e){$('#per-msg').textContent='保存失败';toast('保存失败','error');}
+finally{btn.removeAttribute('data-loading');}};
+
+// === Rules ===
+let RULES={};
+async function loadRules(){try{RULES=await apiGet('/api/rules');}catch(e){RULES={};}renderRules();setDirty('rules',false);}
+function renderRules(){const arr=Array.isArray(RULES.rules)?RULES.rules:[];
+$('#rul-hint').textContent='规则是 AI 行为约束，每次对话注入。可在 /config/rules.yaml 的 rules: 列表里加字符串；也可私聊里用 #规则 xxx 动态添加（更高等级）。';
+const box=$('#rul-list');box.innerHTML='';
+arr.forEach((r,i)=>{const d=document.createElement('div');d.className='row';
+d.innerHTML='<span class="flex-1"><input type="text" data-i="'+i+'" value="'+esc(r)+'"></span><button class="btn sm danger" onclick="rulDel('+i+')">×</button>';
+box.appendChild(d);});
+box.querySelectorAll('input[data-i]').forEach(inp=>inp.onchange=()=>{RULES.rules[+inp.dataset.i]=inp.value;toast('已改（待保存）');setDirty('rules',true);});}
+function rulAdd(){RULES.rules=RULES.rules||[];RULES.rules.push('');renderRules();toast('已加空白规则，填好内容后保存');setDirty('rules',true);}
+function rulDel(i){RULES.rules.splice(i,1);renderRules();toast('已删除（待保存）');setDirty('rules',true);}
+$('#rul-reset').onclick=loadRules;
+$('#rul-save').onclick=async()=>{const btn=$('#rul-save');btn.setAttribute('data-loading','');
+try{const r=await apiPost('/api/rules',Object.assign({},RULES,{__replace:true}));
+if(r.ok){toast('rules.yaml 已保存');$('#rul-msg').textContent='已保存';setDirty('rules',false);}
+else{$('#rul-msg').textContent=r.error||'失败';toast(r.error||'保存失败','error');}}catch(e){$('#rul-msg').textContent='保存失败';toast('保存失败','error');}
+finally{btn.removeAttribute('data-loading');}};
+
+// === Security ===
+let POL={};
+async function loadPolicy2(){try{POL=await apiGet('/api/group-policy');}catch(e){POL={};}renderPolicy();setDirty('security',false);}
+function renderPolicy(){const arr=POL.disabled_tools||[];$('#sec-hint').textContent='群聊安全补丁禁用的工具（AI 技术上无这些能力）。在 /config/group-policy.yaml 的 disabled_tools: 列出手动加的 id（带 tool- 前缀）；下面开关打开=禁用。';
+const box=$('#sec-list');box.innerHTML='';
+arr.forEach((t,i)=>{const d=document.createElement('div');d.className='row';
+d.innerHTML='<label class="switch"><input type="checkbox" data-i="'+i+'" checked><span class="slider"></span></label><span class="flex-1 font-sm">'+esc(t)+'</span><button class="btn sm danger" onclick="secDel('+i+')">×</button>';
+box.appendChild(d);});
+box.querySelectorAll('input[data-i]').forEach(c=>c.onchange=()=>{const idx=+c.dataset.i;if(!c.checked){POL.disabled_tools.splice(idx,1);renderPolicy();}toast('已更新（待保存）');setDirty('security',true);});}
+function secAddTool(){POL.disabled_tools=POL.disabled_tools||[];const id=prompt('输入工具 id（如 tool-xyz）：');if(id){POL.disabled_tools.push(id.trim());POL.disabled_tools=[...new Set(POL.disabled_tools)];renderPolicy();toast('已添加（待保存）');setDirty('security',true);}}
+function secDel(i){POL.disabled_tools.splice(i,1);renderPolicy();toast('已删除（待保存）');setDirty('security',true);}
+$('#sec-reset').onclick=loadPolicy2;
+$('#sec-save').onclick=async()=>{const btn=$('#sec-save');btn.setAttribute('data-loading','');
+try{const r=await apiPost('/api/group-policy',Object.assign({},POL,{__replace:true}));
+if(r.ok){toast('group-policy.yaml 已保存（需重启或热重载重建补丁）');$('#sec-msg').textContent='已保存';setDirty('security',false);}
+else{$('#sec-msg').textContent=r.error||'失败';toast(r.error||'保存失败','error');}}catch(e){$('#sec-msg').textContent='保存失败';toast('保存失败','error');}
+finally{btn.removeAttribute('data-loading');}};
+
+$('#clear-log').onclick=()=>{$('#logs').innerHTML='';};
+
+// === Reminders ===
+let REM=[],RME={};
+function remNick(cid){const hit=(SESS||[]).find(s=>s.chat_id===cid||s.username===cid);return hit?(hit.nick||cid):cid;}
+async function loadRemChats(sel){let chats=[];try{chats=(await apiGet('/api/sessions')).sessions||[];}catch(e){}SESS=chats;
+const s=$(sel);s.innerHTML='<option value=""></option>'+chats.map(c=>'<option value="'+esc(c.chat_id)+'">'+esc((c.nick||c.chat_id))+'（'+esc(c.kind)+'）</option>').join('');}
+async function loadReminders(){try{REM=(await apiGet('/api/schedules')).schedules||[];}catch(e){REM=[];}renderReminders();setDirty('reminders',false);}
+function sortRem(a,b){const x=(a.item&&a.item.when)||'',y=(b.item&&b.item.when)||'';return x<y?-1:x>y?1:0;}
+function renderReminders(){const box=$('#rem-body');box.innerHTML='';
+const list=[...REM].sort(sortRem);
+if(!list.length){box.innerHTML='<tr><td colspan="4" class="text-secondary" style="padding:24px;text-align:center">还没有任何提醒。在上方添加一条。</td></tr>';}
+list.forEach(x=>{const it=x.item||{};const id=(x.chat_id||'')+'::'+(it.id||'')+'::'+(x.mask||'');
+const tr=document.createElement('tr');
+tr.innerHTML='<td class="font-bold">'+esc(it.event||'')+'</td><td>'+esc(it.when||'')+(it.reminded?' <span class="tag">已提醒</span>':'')+'</td>'
++'<td>'+esc(remNick(x.chat_id))+(x.mask?'（'+esc(x.mask)+'）':'')+'</td>'
++'<td><button class="btn sm" onclick="JSremEdit(\''+esc(id)+'\')">编辑</button> '
++'<button class="btn sm danger" onclick="JSremDel(\''+esc(id)+'\')">删除</button></td>';
+box.appendChild(tr);});}
+function splitKey(key){const p=key.split('::');return {chat_id:p[0]||'',id:p[1]||'',mask:p[2]||''};}
+function JSremEdit(key){const k=splitKey(key);RME=k;loadRemChats('#rm-chat').then(()=>{
+$('#rm-chat').value=k.chat_id;
+const hit=REM.find(x=>(x.chat_id||'')===k.chat_id&&(x.item&&x.item.id)===k.id&&(x.mask||'')===k.mask);
+$('#rm-name').value=hit?(hit.item.event||''):'';const w=hit?(hit.item.when||''):'';
+if(w){const cur=$('#rm-when');cur.value=w;}else{$('#rm-when').value='';}
+$('#rem-form-title').textContent='编辑提醒：'+k.id;$('#rm-save').textContent='💾 保存修改';$('#rm-cancel').classList.remove('hidden');});}
+function JSremDel(key){if(!confirm('确认删除该提醒？'))return;const k=splitKey(key);
+api(`/api/schedules/${encodeURIComponent(k.chat_id)}/${encodeURIComponent(k.id)}`,{method:'DELETE'}).then(async r=>{
+const j=await r.json().catch(()=>({}));if(r.ok&&j.ok){toast('已删除');loadReminders();}else toast((j&&j.error)||'删除失败','error');});}
+function remCancelEdit(){RME={};$('#rem-form-title').textContent='添加提醒';$('#rm-save').textContent='添加';$('#rm-cancel').classList.add('hidden');$('#rm-name').value='';$('#rm-when').value='';$('#rm-chat').value='';}
+async function remSave(){const name=$('#rm-name').value.trim(),when=$('#rm-when').value.trim(),cid=$('#rm-chat').value;
+if(!name||!when||!cid){toast('请填名称、时间、对话','warning');return;}
+if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(when)){toast('时间格式应为 YYYY-MM-DD HH:MM','warning');return;}
+const btn=$('#rm-save');btn.setAttribute('data-loading','');
+try{
+if(RME&&RME.id){await api(`/api/schedules/${encodeURIComponent(RME.chat_id)}/${encodeURIComponent(RME.id)}`,{method:'DELETE'});}
+const body={chat_id:cid,when:when,event:name};if(RME&&RME.id&&RME.mask)body.mask=RME.mask;
+const r=await apiPost('/api/schedules',body);
+if(r&&r.ok){toast('提醒已保存');remCancelEdit();loadReminders();}else toast((r&&r.error)||'保存失败','error');
+}catch(e){toast('保存失败','error');}
+finally{btn.removeAttribute('data-loading');}}
+$('#rm-save').onclick=remSave;
+
+// === SSE ===
+let _es=null;
+function connectSSE(){if(_es){_es.close();}_es=new EventSource('/events?token='+encodeURIComponent(TOKEN));
+_es.onmessage=ev=>{try{const j=JSON.parse(ev.data);if(j.type==='status')renderStatus(j.data);else if(j.type==='log')addLog(j.data);}catch(e){}};
+_es.onopen=()=>$('#conn').textContent='● 在线';_es.onerror=()=>{$('#conn').textContent='○ 重连中…';};}
+async function init(){try{await apiGet('/api/status');}catch(e){showLogin();return;}
+renderStatus(await apiGet('/api/status'));connectSSE();setInterval(async()=>{try{renderStatus(await apiGet('/api/status'));}catch(e){}},3000);}
+$$('nav button').forEach(b=>b.onclick=()=>{try{$$('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+$$('[id^=tab-]').forEach(x=>x.classList.add('hidden'));$('#tab-'+b.dataset.tab).classList.remove('hidden');
+const t=b.dataset.tab;
+if(t==='sessions')loadSessions();if(t==='config')loadConfig();if(t==='personas')loadPersonas();if(t==='rules')loadRules();if(t==='security')loadPolicy2();
+if(t==='reminders'){loadReminders();loadRemChats('#rm-chat');}
+}catch(e){console.error('tab err',e);}});
+if(AUTH)init();else showLogin();
+</script></body></html>

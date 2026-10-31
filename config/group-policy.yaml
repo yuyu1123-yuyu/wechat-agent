@@ -1,0 +1,26 @@
+# ============================================================
+# 群聊安全策略（硬约束，不是靠提示词提醒）
+# 程序启动时把这里渲染成 dsh --patch 补丁文件（data/generated/group-lite.yml），
+# 群聊走 headless 时带上。被禁用的工具 AI 在技术上根本没有。
+# 保留：tool-web（联网搜索）、聊天相关能力。
+# ============================================================
+
+disabled_tools:
+  - tool-pwsh
+  - tool-bash
+  - tool-fs
+  - tool-fs-search
+  - tool-str-replace-editor
+  - tool-subagent
+  - tool-subagent-fork
+  - tool-subagent-control
+  - tool-subagent-list-agents
+  - tool-subagent-report
+  - tool-jobs
+
+# 群聊技能目录：{base} 会被替换为项目根目录
+skill_dirs:
+  - "{base}/group-skills"
+
+# 是否同时加载默认技能根（~/.dsh/skills，如 weather-zh）
+include_default_roots: true
